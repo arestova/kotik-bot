@@ -2,6 +2,8 @@ import random
 import json
 import os
 from datetime import datetime
+import os
+import subprocess
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
@@ -28,6 +30,41 @@ def load_data():
 def save_data(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f)
+def backup_to_github():
+    try:
+        token = os.getenv("GITHUB_TOKEN")
+
+        if not token:
+            print("No GitHub token found")
+            return
+
+        repo_url = (
+            f"https://{token}@github.com/arestova/kotik-bot.git"
+        )
+
+        subprocess.run(
+            ["git", "config", "--global", "user.email", "bot@kotik.local"]
+        )
+        subprocess.run(
+            ["git", "config", "--global", "user.name", "Kotik Bot"]
+        )
+
+        subprocess.run(["git", "add", "data.json"])
+        subprocess.run(
+            ["git", "commit", "-m", "Auto update kotik stats"],
+            check=False
+        )
+
+        subprocess.run(
+            ["git", "push", repo_url, "main"],
+            check=False
+        )
+
+        print("Backup to GitHub successful")
+
+    except Exception as e:
+        print(f"GitHub backup failed: {e}")
+
 
 
 # ---------- Вспомогательные функции ----------
@@ -51,6 +88,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not any(p["id"] == user.id for p in data["participants"]):
         data["participants"].append(participant)
         save_data(data)
+        backup_to_github()
         text = (
             "Привет! 🐱\n\n"
             "Я выбираю котика дня.\n"
